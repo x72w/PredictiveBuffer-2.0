@@ -1,6 +1,7 @@
 // Predictive Input Buffer - Windows + Android64 (single file).
 // Trajectory-sim input buffer: F6 (Windows) or the pause-menu "Buffer" button cycles
-// 2/2 -> 4/4 -> 8/8 -> 16/8 -> OFF (ticks; 4 ticks = 1 frame @ 60fps).
+// 14 stages (ticks: 2 4 8 16 20 24 28 32 40 48 56 64 80 96; wave capped at 8) -> OFF.
+// 4 ticks = 1 frame @ 60fps.
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
@@ -119,19 +120,19 @@ public:
     m_rapidInputStreak = 0;
   }
   void cyclePreset() {
-    static const int kAll[5] = {2, 4, 8, 16, 0};
-    static const int kWave[5] = {2, 4, 8, 8, 0};
-    m_presetIndex = (m_presetIndex + 1) % 5;
+    static const int kAll[15] = {2, 4, 8, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 0};
+    static const int kWave[15] = {2, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0};
+    m_presetIndex = (m_presetIndex + 1) % 15;
     m_waitTicks = -1;
     m_queuedOpposite = false;
-    m_enabled = m_presetIndex < 4;
+    m_enabled = m_presetIndex < 14;
     m_maxTicksNormal = kAll[m_presetIndex];
     m_maxTicksWave = kWave[m_presetIndex];
     if (m_enabled) bufLog("[InputBuffer] F6 Cycle -> STAGE %d: %d Ticks All | %d Ticks Wave\n", m_presetIndex + 1, m_maxTicksNormal, m_maxTicksWave);
-    else bufLog("[InputBuffer] F6 Cycle -> STAGE 5: OFF (100%% Raw Input)\n");
+    else bufLog("[InputBuffer] F6 Cycle -> STAGE 15: OFF (100%% Raw Input)\n");
   }
   std::string presetLabel() const {
-    return m_presetIndex < 4 ? "Buffer: S" + std::to_string(m_presetIndex + 1) : std::string("Buffer: OFF");
+    return m_presetIndex < 14 ? "Buffer: S" + std::to_string(m_presetIndex + 1) : std::string("Buffer: OFF");
   }
   bool isSimulating() const { return m_simulating; }
   bool isFiringBuffered() const { return m_firingBuffered; }
@@ -388,7 +389,7 @@ $on_mod(Loaded) {
   bufLog("============================================================\n");
   bufLog(" [InputBuffer] v4.6 LOADED (Wave Spikes/Saws Trajectory Fix)\n");
   bufLog(" [InputBuffer] Starting Mode: STAGE 1 (2 All / 2 Wave)\n");
-  bufLog(" [InputBuffer] F6 (Windows) or the pause-menu Buffer button cycles: 2/2 -> 4/4 -> 8/8 -> 16/8 -> OFF\n");
+  bufLog(" [InputBuffer] F6 (Windows) or the pause-menu Buffer button cycles 14 stages (2..96 ticks) -> OFF\n");
   bufLog("============================================================\n");
 }
 class $modify(BufPlayLayer, PlayLayer) {
