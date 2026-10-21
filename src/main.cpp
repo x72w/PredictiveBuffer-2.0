@@ -1,7 +1,5 @@
 // Predictive Input Buffer - Windows + Android64 (single file).
-// Trajectory-sim input buffer: F6 (Windows) or the pause-menu "Buffer" button cycles
-// 14 stages (ticks: 2 4 8 16 20 24 28 32 40 48 56 64 80 96; wave capped at 8) -> OFF.
-// 4 ticks = 1 frame @ 60fps.
+// Trajectory-sim input buffer. Stage / spam / time-budget options are in the mod settings.
 #include <Geode/Geode.hpp>
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/PlayerObject.hpp>
@@ -10,16 +8,18 @@
 #include <Geode/modify/GameObject.hpp>
 #include <Geode/modify/EffectGameObject.hpp>
 #include <Geode/modify/HardStreak.hpp>
-#include <Geode/modify/PauseLayer.hpp>
 #ifdef GEODE_IS_WINDOWS
 #include <Windows.h>
 #endif
 #include <cstdio>
 #include <cstdarg>
 #include <algorithm>
+#include <chrono>
 using namespace geode::prelude;
 constexpr int SPAM_INTERVAL_TICKS = 8;
 constexpr int SPAM_STREAK_REQUIRED = 3;
+constexpr int SPAM_HORIZON_TICKS = 8;
+constexpr int SPAM_MAX_DELAY_TICKS = 3;
 static void bufLog(const char* fmt, ...) {
   char buf[512];
   va_list args;
@@ -44,10 +44,12 @@ private:
   bool m_simulationDead = false;
   bool m_physicalHolding = false;
   bool m_gameHolding = false;
-  int  m_presetIndex = 0;
-  bool m_enabled = true;
-  int  m_maxTicksNormal = 2;
-  int  m_maxTicksWave = 2;
+  int  m_stageIdx = -1;
+  bool m_enabled = false;
+  int  m_maxTicksNormal = 0;
+  int  m_maxTicksWave = 0;
+  std::chrono::steady_clock::time_point m_deadline;
+  bool m_overBudget = false;
   int  m_waitTicks = -1;
   bool m_bufferedPush = true;
   bool m_queuedOpposite = false;
@@ -95,6 +97,8 @@ public:
     if (!pl) return;
     m_simPlayer1 = createTrajectoryPlayer();
     m_simPlayer2 = createTrajectoryPlayer();
+    m_stageIdx = -1;
+    applySettings();
     m_waitTicks = -1;
     m_queuedOpposite = false;
     m_physicalHolding = false;
@@ -119,20 +123,23 @@ public:
     m_queuedOpposite = false;
     m_rapidInputStreak = 0;
   }
-  void cyclePreset() {
-    static const int kAll[15] = {2, 4, 8, 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 0};
-    static const int kWave[15] = {2, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 0};
-    m_presetIndex = (m_presetIndex + 1) % 15;
+  void applySettings() {
+    static const int kAll[5] = {0, 2, 4, 8, 16};
+    static const int kWave[5] = {0, 2, 4, 8, 8};
+    std::string v = Mod::get()->getSettingValue<std::string>("stage");
+    int idx = 0;
+    if (v.rfind("Stage 1", 0) == 0) idx = 1;
+    else if (v.rfind("Stage 2", 0) == 0) idx = 2;
+    else if (v.rfind("Stage 3", 0) == 0) idx = 3;
+    else if (v.rfind("Stage 4", 0) == 0) idx = 4;
+    if (idx == m_stageIdx) return;
+    m_stageIdx = idx;
     m_waitTicks = -1;
     m_queuedOpposite = false;
-    m_enabled = m_presetIndex < 14;
-    m_maxTicksNormal = kAll[m_presetIndex];
-    m_maxTicksWave = kWave[m_presetIndex];
-    if (m_enabled) bufLog("[InputBuffer] F6 Cycle -> STAGE %d: %d Ticks All | %d Ticks Wave\n", m_presetIndex + 1, m_maxTicksNormal, m_maxTicksWave);
-    else bufLog("[InputBuffer] F6 Cycle -> STAGE 15: OFF (100%% Raw Input)\n");
-  }
-  std::string presetLabel() const {
-    return m_presetIndex < 14 ? "Buffer: S" + std::to_string(m_presetIndex + 1) : std::string("Buffer: OFF");
+    m_enabled = idx > 0;
+    m_maxTicksNormal = kAll[idx];
+    m_maxTicksWave = kWave[idx];
+    bufLog("[InputBuffer] Stage -> %s (%d ticks All | %d ticks Wave)\n", v.c_str(), m_maxTicksNormal, m_maxTicksWave);
   }
   bool isSimulating() const { return m_simulating; }
   bool isFiringBuffered() const { return m_firingBuffered; }
@@ -179,6 +186,10 @@ public:
     int airborneTicks = 0;
     int safeLandedTicks = 0;
     for (int i = 0; i < delayFrames + maxTicks; i++) {
+      if ((i & 3) == 0 && std::chrono::steady_clock::now() > m_deadline) {
+        m_overBudget = true;
+        break;
+      }
       if (i == delayFrames) setBtn(actionPush);
       m_simPlayer1->update(dt);
       m_simPlayer1->updateRotation(dt);
@@ -219,6 +230,7 @@ public:
   bool interceptInput(GJBaseGameLayer* layer, bool push, bool isPlayer1) {
     PlayLayer* pl = PlayLayer::get();
     if (!pl) return true;
+    applySettings();
     bool isDual = pl->m_gameState.m_isDualMode && pl->m_player2 != nullptr;
     bool isTwoPlayerControl = pl->m_level && pl->m_level->m_twoPlayerMode;
     if (!isPlayer1) {
@@ -271,7 +283,8 @@ public:
       m_rapidInputStreak = 0;
     }
     m_ticksSinceLastInput = 0;
-    if (isWave && m_rapidInputStreak >= SPAM_STREAK_REQUIRED) {
+    bool spam = isWave && m_rapidInputStreak >= SPAM_STREAK_REQUIRED;
+    if (spam && !Mod::get()->getSettingValue<bool>("buffer-spam")) {
       m_gameHolding = push;
       return true;
     }
@@ -283,10 +296,16 @@ public:
     }
     m_queuedOpposite = false;
     const char* act = push ? "PRESS" : "RELEASE";
-    int targetHorizon = isMiniWave ? 50 : (isWave ? 65 : 160);
+    int targetHorizon = isMiniWave ? 50 : (isWave ? 65 : 96);
     int maxDelayFrames = isWave ? m_maxTicksWave : m_maxTicksNormal;
+    if (spam) {
+      targetHorizon = SPAM_HORIZON_TICKS;
+      maxDelayFrames = std::min(maxDelayFrames, SPAM_MAX_DELAY_TICKS);
+    }
+    m_deadline = std::chrono::steady_clock::now() + std::chrono::microseconds(Mod::get()->getSettingValue<int64_t>("max-ms") * 1000);
+    m_overBudget = false;
     int ticksFrame0 = getSurvivalTicks(pl, p1, p2, isDual, 0, push, targetHorizon);
-    if (ticksFrame0 >= targetHorizon) {
+    if (m_overBudget || ticksFrame0 >= targetHorizon) {
       m_gameHolding = push;
       return true;
     }
@@ -294,7 +313,17 @@ public:
     int bestTicks = ticksFrame0;
     for (int delay = 1; delay <= maxDelayFrames; delay++) {
       int ticks = getSurvivalTicks(pl, p1, p2, isDual, delay, push, targetHorizon);
-      if (isWave) {
+      if (m_overBudget) {
+        bestDelay = 0;
+        break;
+      }
+      if (spam) {
+        if (ticks >= targetHorizon) {
+          bestDelay = delay;
+          bestTicks = ticks;
+          break;
+        }
+      } else if (isWave) {
         int minClearedGain = (delay * 2) + 10;
         if (ticks >= targetHorizon && (ticks - ticksFrame0) >= (delay * 2) + 6) {
           bestDelay = delay;
@@ -319,7 +348,7 @@ public:
       }
     }
     if (bestDelay > 0) {
-      bufLog("[InputBuffer] *** SAVED +%d TICKS (%.2f frames @ 60fps) %s! (Frame0: %d -> Delayed: %d) [Limit: %d] ***\n",
+      if (Mod::get()->getSettingValue<bool>("log-saves")) bufLog("[InputBuffer] *** SAVED +%d TICKS (%.2f frames @ 60fps) %s! (Frame0: %d -> Delayed: %d) [Limit: %d] ***\n",
         bestDelay, bestDelay / 4.0f, act, ticksFrame0, bestTicks, maxDelayFrames);
       m_bufferedPush = push;
       m_waitTicks = bestDelay;
@@ -331,11 +360,6 @@ public:
   void onPlayerUpdate(PlayerObject* player) {
     PlayLayer* pl = PlayLayer::get();
     if (!pl || player != pl->m_player1) return;
-#ifdef GEODE_IS_WINDOWS
-    if (GetAsyncKeyState(VK_F6) & 1) {
-      cyclePreset();
-    }
-#endif
     if (!m_enabled) return;
     if (m_ticksSinceLastInput < 999) {
       m_ticksSinceLastInput++;
@@ -389,7 +413,7 @@ $on_mod(Loaded) {
   bufLog("============================================================\n");
   bufLog(" [InputBuffer] v4.6 LOADED (Wave Spikes/Saws Trajectory Fix)\n");
   bufLog(" [InputBuffer] Starting Mode: STAGE 1 (2 All / 2 Wave)\n");
-  bufLog(" [InputBuffer] F6 (Windows) or the pause-menu Buffer button cycles 14 stages (2..96 ticks) -> OFF\n");
+  bufLog(" [InputBuffer] Pick the stage (OFF / 1-4) in the mod settings\n");
   bufLog("============================================================\n");
 }
 class $modify(BufPlayLayer, PlayLayer) {
@@ -498,8 +522,8 @@ class $modify(BufBaseGameLayer, GJBaseGameLayer) {
   }
   void collisionCheckObjects(PlayerObject* player, gd::vector<GameObject*>* vec, int objectsCount, float dt) {
     if (s_sim.isSimulating()) {
-      gd::vector<GameObject*> extra;
-      extra.reserve(objectsCount);
+      static gd::vector<GameObject*> extra;
+      extra.clear();
       for (int i = 0; i < objectsCount; i++) {
         GameObject* obj = vec->at(i);
         if (!obj) continue;
@@ -519,25 +543,5 @@ class $modify(BufBaseGameLayer, GJBaseGameLayer) {
   void playerTouchedRing(PlayerObject* player, RingObject* ring) {
     if (s_sim.isSimulating()) return;
     GJBaseGameLayer::playerTouchedRing(player, ring);
-  }
-};
-class $modify(BufPauseLayer, PauseLayer) {
-  struct Fields {
-    ButtonSprite* label = nullptr;
-  };
-  void customSetup() {
-    PauseLayer::customSetup();
-    auto win = CCDirector::sharedDirector()->getWinSize();
-    auto spr = ButtonSprite::create(s_sim.presetLabel().c_str(), "goldFont.fnt", "GJ_button_04.png", .6f);
-    m_fields->label = spr;
-    auto btn = CCMenuItemSpriteExtra::create(spr, this, menu_selector(BufPauseLayer::onCycleBuffer));
-    auto menu = CCMenu::create();
-    menu->addChild(btn);
-    menu->setPosition({win.width - 70.f, 30.f});
-    this->addChild(menu, 10);
-  }
-  void onCycleBuffer(CCObject*) {
-    s_sim.cyclePreset();
-    if (m_fields->label) m_fields->label->setString(s_sim.presetLabel().c_str());
   }
 };
