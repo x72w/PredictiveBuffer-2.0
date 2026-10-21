@@ -13,6 +13,12 @@
 		"stage": {
 			"type": "string",
 			"name": "Buffer stage",
-			"description": "How many ticks a click may be held back (4 ticks = 1 frame at 60 FPS). Stage 4 allows 16 ticks, but wave stays at 8.",
+			"description": "Max ticks a click may be held back (4 ticks = 1 frame).",
 			"default": "Stage 1: 2 ticks",
 			"one-of": ["OFF", "Stage 1: 2 ticks", "Stage 2: 4 ticks", "Stage 3: 8 ticks", "Stage 4: 16 ticks"]
+		},
+		"buffer-spam": {"type": "bool", "name": "Buffer wave spam", "default": true},
+		"max-ms": {"type": "int", "name": "Max prediction time (ms)", "default": 3, "min": 1, "max": 10},
+		"log-saves": {"type": "bool", "name": "Log saved clicks", "default": false}
+	}
+}
