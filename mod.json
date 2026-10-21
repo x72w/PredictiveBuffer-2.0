@@ -4,9 +4,15 @@
 		"win": "2.2081",
 		"android": "2.2081"
 	},
-	"version": "v1.0.0",
+	"version": "v1.1.0",
 	"id": "ai.predictivebuffer",
-	"name": "Predictive Input Buffer",
-	"developer": "lilWC",
-	"description": "Trajectory-based 1-2 frame press and wave release input buffer."
-}
+	"name": "Dossy Buff",
+	"developer": "DossyGD",
+	"description": "FPS Boost",
+	"settings": {
+		"stage": {
+			"type": "string",
+			"name": "Buffer stage",
+			"description": "How many ticks a click may be held back (4 ticks = 1 frame at 60 FPS). Stage 4 allows 16 ticks, but wave stays at 8.",
+			"default": "Stage 1: 2 ticks",
+			"one-of": ["OFF", "Stage 1: 2 ticks", "Stage 2: 4 ticks", "Stage 3: 8 ticks", "Stage 4: 16 ticks"]
