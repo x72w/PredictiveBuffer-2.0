@@ -1,21 +1,19 @@
-{
- "geode": "5.11.2",
- "gd": {
-  "win": "2.2081",
-  "android": "2.2081"
- },
- "version": "v1.2.0",
- "id": "ai.predictivebuffer",
- "name": "Dossy Buff",
- "developer": "DossyGD",
- "description": "FPS Boost",
- "settings": {
-  "stage": {
-   "type": "string",
-   "name": "Buffer stage",
-   "description": "Max ticks a click may be delayed (4 ticks = 1 frame @60FPS).",
-   "default": "Stage 1: 2 ticks",
-   "one-of": [
-    "OFF",
-    "Stage 1: 2 ticks",
-    "Stage 2: 4 ticks",
+{"geode":"5.11.2","gd":{"win":"2.2081","android":"2.2081"},"version":"v1.2.0","id":"ai.predictivebuffer","name":"Dossy Buff","developer":"DossyGD","description":"FPS Boost","settings":{
+"stage":{"type":"string","name":"Buffer stage","default":"Stage 1: 2 ticks","one-of":["OFF","Stage 1: 2 ticks","Stage 2: 4 ticks","Stage 3: 8 ticks","Stage 4: 16 ticks"]},
+"wave-cap":{"type":"int","name":"Wave/Ship max ticks","default":8,"min":1,"max":16},
+"mode-cube":{"type":"bool","name":"Cube","default":true},
+"mode-ship":{"type":"bool","name":"Ship","default":false},
+"mode-wave":{"type":"bool","name":"Wave","default":true},
+"mode-ufo":{"type":"bool","name":"UFO","default":true},
+"mode-ball":{"type":"bool","name":"Ball","default":true},
+"mode-robot":{"type":"bool","name":"Robot","default":true},
+"mode-spider":{"type":"bool","name":"Spider","default":true},
+"mode-swing":{"type":"bool","name":"Swing","default":true},
+"buffer-spam":{"type":"bool","name":"Buffer wave spam","default":true},
+"spam-streak":{"type":"int","name":"Spam detect clicks","default":3,"min":2,"max":8},
+"spam-delay":{"type":"int","name":"Spam max delay","default":3,"min":1,"max":8},
+"horizon-pct":{"type":"int","name":"Lookahead %","default":100,"min":30,"max":150},
+"max-ms":{"type":"int","name":"Max prediction ms","default":3,"min":1,"max":10},
+"show-counter":{"type":"bool","name":"Save counter","default":false},
+"log-saves":{"type":"bool","name":"Log saves","default":false}
+}}
