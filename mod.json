@@ -1,24 +1,21 @@
 {
-	"geode": "5.11.2",
-	"gd": {
-		"win": "2.2081",
-		"android": "2.2081"
-	},
-	"version": "v1.1.0",
-	"id": "ai.predictivebuffer",
-	"name": "Dossy Buff",
-	"developer": "DossyGD",
-	"description": "FPS Boost",
-	"settings": {
-		"stage": {
-			"type": "string",
-			"name": "Buffer stage",
-			"description": "Max ticks a click may be held back (4 ticks = 1 frame).",
-			"default": "Stage 1: 2 ticks",
-			"one-of": ["OFF", "Stage 1: 2 ticks", "Stage 2: 4 ticks", "Stage 3: 8 ticks", "Stage 4: 16 ticks"]
-		},
-		"buffer-spam": {"type": "bool", "name": "Buffer wave spam", "default": true},
-		"max-ms": {"type": "int", "name": "Max prediction time (ms)", "default": 3, "min": 1, "max": 10},
-		"log-saves": {"type": "bool", "name": "Log saved clicks", "default": false}
-	}
-}
+ "geode": "5.11.2",
+ "gd": {
+  "win": "2.2081",
+  "android": "2.2081"
+ },
+ "version": "v1.2.0",
+ "id": "ai.predictivebuffer",
+ "name": "Dossy Buff",
+ "developer": "DossyGD",
+ "description": "FPS Boost",
+ "settings": {
+  "stage": {
+   "type": "string",
+   "name": "Buffer stage",
+   "description": "Max ticks a click may be delayed (4 ticks = 1 frame @60FPS).",
+   "default": "Stage 1: 2 ticks",
+   "one-of": [
+    "OFF",
+    "Stage 1: 2 ticks",
+    "Stage 2: 4 ticks",
